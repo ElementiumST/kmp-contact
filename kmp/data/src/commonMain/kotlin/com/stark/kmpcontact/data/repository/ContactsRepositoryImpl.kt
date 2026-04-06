@@ -21,21 +21,31 @@ class ContactsRepositoryImpl(
 ) : ContactsRepository {
 
     override suspend fun getContacts(page: Int): ContactsPage {
-        return when (val networkResult = networkRequestExecutor.execute(
+        val networkResult = networkRequestExecutor.execute(
             url = "${serverUrlProvider.serverUrl.trimEnd('/')}/contacts?page=$page",
             method = HttpMethod.GET,
-        )) {
-            is ContactsResponseDto -> ContactsPage(
-                data = networkResult.data.map { it.toDomain() },
-                hasNext = networkResult.hasNext,
-                totalCount = networkResult.totalCount,
-            )
-            is NetworkException -> throw networkResult
-            else -> throw NetworkException(
-                code = null,
-                message = "Unexpected network response for contacts list.",
+            responseClass = ContactsResponseDto::class,
+        )
+
+        networkResult.data.forEach { contactDto ->
+            databaseRequestExecutor.execute(
+                statement = "contacts.upsert",
+                operation = DatabaseOperation.INSERT,
+                arguments = mapOf(
+                    "id" to (contactDto.contact?.contactId ?: contactDto.name),
+                    "name" to contactDto.name,
+                    "phone" to contactDto.phone,
+                    "email" to contactDto.email,
+                    "interlocutorType" to contactDto.interlocutorType,
+                ),
             )
         }
+
+        return ContactsPage(
+            data = networkResult.data.map { it.toDomain() },
+            hasNext = networkResult.hasNext,
+            totalCount = networkResult.totalCount,
+        )
     }
 
     override suspend fun getContact(contactId: String): Contact? {

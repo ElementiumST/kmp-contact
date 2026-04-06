@@ -26,10 +26,10 @@ fun ContactDto.toDomain(): Contact = Contact(
 )
 
 fun ContactEntity.toDomain(): Contact = Contact(
-    name = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" "),
+    name = name,
     email = email,
-    phone = phoneNumber,
-    interlocutorType = "UNKNOWN",
+    phone = phone,
+    interlocutorType = interlocutorType,
 )
 
 fun ContactDetailsDto.toDomain(): ContactDetails = ContactDetails(

@@ -20,6 +20,7 @@ include(
     ":kmp:domain",
     ":kmp:data",
     ":android:contacts",
+    ":android:main",
     ":ios:contacts",
     ":web:contacts",
 )

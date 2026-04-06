@@ -7,6 +7,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(17)
     androidTarget()
     iosX64()
     iosArm64()
@@ -31,5 +32,10 @@ configure<LibraryExtension> {
 
     defaultConfig {
         minSdk = libs.versions.androidMinSdk.get().toInt()
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
