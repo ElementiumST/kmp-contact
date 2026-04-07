@@ -40,11 +40,10 @@ android {
 dependencies {
     implementation(project(":kmp:domain"))
     implementation(project(":kmp:data"))
+    implementation(project(":kmp:support"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.paging.runtime)
-    implementation(libs.androidx.paging.compose)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
     implementation(libs.okhttp)

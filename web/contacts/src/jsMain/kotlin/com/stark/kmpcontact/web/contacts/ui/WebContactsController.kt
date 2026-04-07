@@ -2,15 +2,17 @@ package com.stark.kmpcontact.web.contacts.ui
 
 import com.stark.kmpcontact.domain.model.Contact
 import com.stark.kmpcontact.domain.usecase.GetContactsUseCase
+import com.stark.kmpcontact.support.paging.ContactsPaginator
+import com.stark.kmpcontact.support.paging.PagingState
 import com.stark.kmpcontact.web.contacts.platform.WebNetworkStatusNotifier
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLButtonElement
 
-private const val FIRST_PAGE = 1
 private const val TOAST_DURATION_MS = 3000
 
 class WebContactsController(
@@ -19,6 +21,10 @@ class WebContactsController(
     networkStatusNotifier: WebNetworkStatusNotifier,
 ) {
     private val scope = MainScope()
+    private val contactsPaginator = ContactsPaginator(
+        scope = scope,
+        getContactsUseCase = getContactsUseCase,
+    )
     private var toastTimeoutHandle: Int? = null
 
     private var state = WebContactsState()
@@ -30,54 +36,27 @@ class WebContactsController(
     }
 
     fun start() {
+        contactsPaginator.state
+            .onEach { pagingState ->
+                state = state.copy(pagingState = pagingState)
+                render()
+            }
+            .launchIn(scope)
+
         render()
         loadInitial()
     }
 
     private fun loadInitial() {
-        loadPage(page = FIRST_PAGE, replace = true)
+        contactsPaginator.refresh()
     }
 
     private fun loadNextPage() {
-        if (!state.hasNext || state.isLoading || state.isLoadingMore) return
-        loadPage(page = state.nextPage, replace = false)
+        contactsPaginator.loadNextPage()
     }
 
-    private fun loadPage(page: Int, replace: Boolean) {
-        scope.launch {
-            state = if (replace) {
-                state.copy(isLoading = true, errorMessage = null)
-            } else {
-                state.copy(isLoadingMore = true, errorMessage = null)
-            }
-            render()
-
-            try {
-                val contactsPage = getContactsUseCase(page = page)
-                val updatedContacts = if (replace) {
-                    contactsPage.data
-                } else {
-                    (state.contacts + contactsPage.data).distinctBy { it.stableKey() }
-                }
-
-                state = state.copy(
-                    contacts = updatedContacts,
-                    isLoading = false,
-                    isLoadingMore = false,
-                    hasNext = contactsPage.hasNext,
-                    nextPage = page + 1,
-                    errorMessage = null,
-                )
-            } catch (throwable: Throwable) {
-                state = state.copy(
-                    isLoading = false,
-                    isLoadingMore = false,
-                    errorMessage = throwable.message ?: "Не удалось загрузить контакты.",
-                )
-            }
-
-            render()
-        }
+    private fun retryLoading() {
+        contactsPaginator.retry()
     }
 
     private fun showMessage(message: String) {
@@ -121,17 +100,21 @@ class WebContactsController(
             return
         }
 
-        if (state.isLoading && state.contacts.isEmpty()) {
+        val pagingState = state.pagingState
+
+        if (pagingState.isLoading && pagingState.items.isEmpty()) {
             root.appendChild(createBlock("Loading contacts..."))
             return
         }
 
-        if (!state.errorMessage.isNullOrBlank() && state.contacts.isEmpty()) {
+        if (!pagingState.error?.message.isNullOrBlank() && pagingState.items.isEmpty()) {
             root.appendChild(
                 createBlock(
-                    text = state.errorMessage!!,
+                    text = pagingState.error!!.message,
                     backgroundColor = "#ffd9d9",
                     textColor = "#7b1f1f",
+                    buttonLabel = "Retry",
+                    onButtonClick = ::retryLoading,
                 ),
             )
             return
@@ -142,19 +125,30 @@ class WebContactsController(
 
     private fun renderContactsList(): HTMLElement {
         val container = createSection()
+        val pagingState = state.pagingState
 
-        if (state.contacts.isEmpty()) {
+        if (pagingState.items.isEmpty()) {
             container.appendChild(createBlock("No contacts available."))
             return container
         }
 
-        state.contacts.forEach { contact ->
+        pagingState.items.forEach { contact ->
             container.appendChild(renderContactCard(contact))
         }
 
-        if (state.isLoadingMore) {
+        if (pagingState.isLoadingMore) {
             container.appendChild(createBlock("Loading more contacts..."))
-        } else if (state.hasNext) {
+        } else if (!pagingState.error?.message.isNullOrBlank()) {
+            container.appendChild(
+                createBlock(
+                    text = pagingState.error!!.message,
+                    backgroundColor = "#ffd9d9",
+                    textColor = "#7b1f1f",
+                    buttonLabel = "Retry",
+                    onButtonClick = ::retryLoading,
+                ),
+            )
+        } else if (pagingState.hasNext) {
             val loadMoreButton = document.createElement("button") as HTMLButtonElement
             loadMoreButton.textContent = "Load more"
             applyButtonStyle(loadMoreButton)
@@ -256,11 +250,25 @@ class WebContactsController(
         text: String,
         backgroundColor: String = "#ffffff",
         textColor: String = "#1a1a1a",
+        buttonLabel: String? = null,
+        onButtonClick: (() -> Unit)? = null,
     ): HTMLElement {
         val block = createSection()
         block.style.backgroundColor = backgroundColor
         block.style.color = textColor
         block.appendChild(createText(text))
+
+        if (buttonLabel != null && onButtonClick != null) {
+            val button = document.createElement("button") as HTMLButtonElement
+            button.textContent = buttonLabel
+            applyButtonStyle(button)
+            button.style.marginTop = "12px"
+            button.addEventListener("click", {
+                onButtonClick()
+            })
+            block.appendChild(button)
+        }
+
         return block
     }
 
@@ -288,19 +296,10 @@ class WebContactsController(
             removeChild(firstChild!!)
         }
     }
-
-    private fun Contact.stableKey(): String {
-        return contact?.contactId ?: profile?.profileId ?: email ?: phone ?: name
-    }
 }
 
 private data class WebContactsState(
-    val contacts: List<Contact> = emptyList(),
     val selectedContact: Contact? = null,
-    val isLoading: Boolean = false,
-    val isLoadingMore: Boolean = false,
-    val hasNext: Boolean = true,
-    val nextPage: Int = FIRST_PAGE + 1,
+    val pagingState: PagingState<Contact> = PagingState(),
     val notification: String? = null,
-    val errorMessage: String? = null,
 )

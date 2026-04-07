@@ -19,6 +19,7 @@ rootProject.name = "kmp-contact"
 include(
     ":kmp:domain",
     ":kmp:data",
+    ":kmp:support",
     ":android:contacts",
     ":android:main",
     ":ios:contacts",

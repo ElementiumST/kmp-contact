@@ -12,6 +12,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":kmp:domain"))
             implementation(project(":kmp:data"))
+            implementation(project(":kmp:support"))
         }
         jsMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)

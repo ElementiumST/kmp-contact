@@ -6,7 +6,6 @@ androidMinSdk = "24"
 androidxCore = "1.15.0"
 activityCompose = "1.9.3"
 composeBom = "2024.10.01"
-paging = "3.3.2"
 lifecycle = "2.8.7"
 hilt = "2.52"
 hiltNavigationCompose = "1.2.0"
@@ -32,8 +31,6 @@ androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
-androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
-androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }

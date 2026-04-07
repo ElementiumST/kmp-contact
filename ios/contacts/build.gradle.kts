@@ -11,6 +11,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":kmp:domain"))
             implementation(project(":kmp:data"))
+            implementation(project(":kmp:support"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

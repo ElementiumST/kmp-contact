@@ -18,6 +18,7 @@
             <option value="$PROJECT_DIR$/kmp" />
             <option value="$PROJECT_DIR$/kmp/data" />
             <option value="$PROJECT_DIR$/kmp/domain" />
+            <option value="$PROJECT_DIR$/kmp/support" />
             <option value="$PROJECT_DIR$/web" />
             <option value="$PROJECT_DIR$/web/contacts" />
           </set>
