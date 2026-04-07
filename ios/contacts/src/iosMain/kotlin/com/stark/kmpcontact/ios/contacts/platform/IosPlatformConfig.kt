@@ -14,6 +14,18 @@ class IosServerUrlProvider(
     config: IosContactsConfig,
 ) : ServerUrlProvider {
     override val serverUrl: String = config.serverUrl
+        .trim()
+        .takeUnless { candidate ->
+            candidate.isEmpty() ||
+                candidate.contains("\$(") ||
+                candidate == "https://localhost" ||
+                candidate == "http://localhost"
+        }
+        ?: DEFAULT_SERVER_URL
+
+    private companion object {
+        private const val DEFAULT_SERVER_URL = "https://alpha.hi-tech.org/api/rest"
+    }
 }
 
 class IosAuthSessionStore(
