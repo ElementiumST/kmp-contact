@@ -34,7 +34,12 @@ class AppConfiguration {
         }
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if value.isEmpty || value.contains("$(") || value == "https://localhost" || value == "http://localhost" {
+        if value.isEmpty ||
+            value.contains("$(") ||
+            value == "https://localhost" ||
+            value == "http://localhost" ||
+            value == "https:" ||
+            value == "http:" {
             return fallback
         }
 

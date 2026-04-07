@@ -19,7 +19,9 @@ class IosServerUrlProvider(
             candidate.isEmpty() ||
                 candidate.contains("\$(") ||
                 candidate == "https://localhost" ||
-                candidate == "http://localhost"
+                candidate == "http://localhost" ||
+                candidate == "https:" ||
+                candidate == "http:"
         }
         ?: DEFAULT_SERVER_URL
 

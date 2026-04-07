@@ -1,4 +1,5 @@
-SERVER_URL = https://alpha.hi-tech.org/api/rest
+SLASH = /
+SERVER_URL = https:$(SLASH)/alpha.hi-tech.org/api/rest
 AUTH_LOGIN = mobileuser3@testivcs.su
 AUTH_PASSWORD = test
 AUTH_REMEMBER_ME = NO
