@@ -1,20 +1,38 @@
 package com.stark.kmpcontact.android.contacts.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.stark.kmpcontact.android.contacts.ui.theme.ContActionButtonForContactBackground
+import com.stark.kmpcontact.android.contacts.ui.theme.ContFieldContactInfo
+import com.stark.kmpcontact.android.contacts.ui.theme.ContInfoBoxBackground
+import com.stark.kmpcontact.android.contacts.ui.theme.ContTagBackground
+import com.stark.kmpcontact.android.contacts.ui.theme.ContTagText
+import com.stark.kmpcontact.android.contacts.ui.theme.MainTabBarIcons
 import com.stark.kmpcontact.domain.model.Contact
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,20 +40,30 @@ import com.stark.kmpcontact.domain.model.Contact
 fun ContactInfoScreen(
     contact: Contact,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onMessageClick: () -> Unit,
+    onAudioCallClick: () -> Unit,
+    onVideoCallClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(text = contact.name) },
+                modifier = Modifier.statusBarsPadding(),
+                title = { Text(text = "Contact") },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text(text = "Back")
+                        Text(text = "Back", color = ContFieldContactInfo)
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onEdit) {
+                        Text(text = "Edit", color = MainTabBarIcons)
                     }
                 },
             )
         },
-        modifier = modifier,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -43,39 +71,146 @@ fun ContactInfoScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            DetailRow(label = "name", value = contact.name)
-            DetailRow(label = "email", value = contact.email)
-            DetailRow(label = "phone", value = contact.phone)
-            DetailRow(label = "interlocutorType", value = contact.interlocutorType)
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ContInfoBoxBackground.copy(alpha = 0.08f))
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    // TODO: The original Android screen used a blurred banner and rich avatar.
+                    // Replace this simplified avatar/header once design assets are available.
+                    ContactAvatar(
+                        name = contact.name,
+                        modifier = Modifier.size(88.dp),
+                    )
+                    Text(
+                        text = contact.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    contact.profile?.customStatus?.statusText
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { status ->
+                            Text(
+                                text = status,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = ContFieldContactInfo,
+                            )
+                        }
 
-            DetailRow(label = "contact.contactId", value = contact.contact?.contactId)
-            DetailRow(label = "contact.type", value = contact.contact?.type)
-            DetailRow(label = "contact.ownerProfileId", value = contact.contact?.ownerProfileId)
-            DetailRow(label = "contact.createdAt", value = contact.contact?.createdAt?.toString())
-            DetailRow(label = "contact.updatedAt", value = contact.contact?.updatedAt?.toString())
-            DetailRow(label = "contact.deleted", value = contact.contact?.deleted?.toString())
-            DetailRow(label = "contact.note", value = contact.contact?.note)
-            DetailRow(label = "contact.tags", value = contact.contact?.tags?.joinToString())
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ActionChip(label = "Message", onClick = onMessageClick)
+                        ActionChip(label = "Audio", onClick = onAudioCallClick)
+                        ActionChip(label = "Video", onClick = onVideoCallClick)
+                    }
+                }
+            }
 
-            DetailRow(label = "profile.profileId", value = contact.profile?.profileId)
-            DetailRow(label = "profile.userType", value = contact.profile?.userType)
-            DetailRow(label = "profile.avatarResourceId", value = contact.profile?.avatarResourceId)
-            DetailRow(label = "profile.additionalContact", value = contact.profile?.additionalContact)
-            DetailRow(label = "profile.aboutSelf", value = contact.profile?.aboutSelf)
-            DetailRow(label = "profile.companyId", value = contact.profile?.companyId)
-            DetailRow(label = "profile.isGuest", value = contact.profile?.isGuest?.toString())
-            DetailRow(label = "profile.deleted", value = contact.profile?.deleted?.toString())
-            DetailRow(label = "profile.customStatus.statusText", value = contact.profile?.customStatus?.statusText)
+            ContactInfoSection(
+                title = "Main info",
+                entries = listOfNotNull(
+                    detailEntry("Email", contact.email),
+                    detailEntry("Phone", contact.phone),
+                    detailEntry("About", contact.profile?.aboutSelf),
+                    detailEntry("Note", contact.contact?.note),
+                    detailEntry("Additional contact", contact.profile?.additionalContact),
+                    detailEntry("Type", contact.interlocutorType),
+                ),
+            )
 
-            DetailRow(label = "ldapUser.ldapUserId", value = contact.ldapUser?.ldapUserId)
-            DetailRow(label = "ldapUser.targets", value = contact.ldapUser?.targets?.joinToString())
+            contact.contact?.tags
+                ?.filter { it.isNotBlank() }
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { tags ->
+                    ContactInfoSection(
+                        title = "Tags",
+                        entries = tags.map { tag -> tag to tag },
+                        renderValueAsTag = true,
+                    )
+                }
 
-            DetailRow(label = "externalInfo.externalDomainId", value = contact.externalInfo?.externalDomainId)
-            DetailRow(label = "externalInfo.externalDomainName", value = contact.externalInfo?.externalDomainName)
-            DetailRow(label = "externalInfo.externalDomainHost", value = contact.externalInfo?.externalDomainHost)
+            ContactInfoSection(
+                title = "Technical info",
+                entries = listOfNotNull(
+                    detailEntry("Contact id", contact.contact?.contactId),
+                    detailEntry("Profile id", contact.profile?.profileId),
+                    detailEntry("LDAP id", contact.ldapUser?.ldapUserId),
+                    detailEntry("External domain", contact.externalInfo?.externalDomainName),
+                ),
+            )
         }
+    }
+}
+
+@Composable
+private fun ContactInfoSection(
+    title: String,
+    entries: List<Pair<String, String>>,
+    renderValueAsTag: Boolean = false,
+) {
+    if (entries.isEmpty()) {
+        return
+    }
+
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            entries.forEachIndexed { index, (label, value) ->
+                if (renderValueAsTag) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = ContTagBackground,
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = ContTagText,
+                        )
+                    }
+                } else {
+                    DetailRow(label = label, value = value)
+                }
+
+                if (index != entries.lastIndex) {
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionChip(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = ContActionButtonForContactBackground,
+        onClick = onClick,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            color = MainTabBarIcons,
+        )
     }
 }
 
@@ -86,9 +221,25 @@ private fun DetailRow(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(text = label)
-        Text(text = value ?: "null")
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = ContFieldContactInfo,
+        )
+        Text(
+            text = value ?: "Not provided",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.Black,
+        )
     }
+}
+
+private fun detailEntry(
+    label: String,
+    value: String?,
+): Pair<String, String>? {
+    val normalizedValue = value?.takeIf { it.isNotBlank() } ?: return null
+    return label to normalizedValue
 }

@@ -12,6 +12,7 @@ import com.stark.kmpcontact.data.network.ServerUrlProvider
 import com.stark.kmpcontact.data.remote.dto.ContactDto
 import com.stark.kmpcontact.data.remote.dto.ContactsResponseDto
 import com.stark.kmpcontact.domain.model.Contact
+import com.stark.kmpcontact.domain.model.ContactDraft
 import com.stark.kmpcontact.domain.model.ContactsPage
 import com.stark.kmpcontact.domain.repository.ContactsRepository
 
@@ -31,23 +32,14 @@ class ContactsRepositoryImpl(
                 responseClass = ContactsResponseDto::class,
             )
             val uniqueNetworkContacts = networkResult.data.distinctBy { it.stableKey() }
+            val contacts = uniqueNetworkContacts.map { it.toDomain() }
 
-            uniqueNetworkContacts.forEach { contactDto ->
-                databaseRequestExecutor.execute(
-                    statement = "contacts.upsert",
-                    operation = DatabaseOperation.INSERT,
-                    arguments = mapOf(
-                        "id" to contactDto.stableKey(),
-                        "name" to contactDto.name,
-                        "phone" to contactDto.phone,
-                        "email" to contactDto.email,
-                        "interlocutorType" to contactDto.interlocutorType,
-                    ),
-                )
+            contacts.forEach { contact ->
+                cacheContact(contact)
             }
 
             ContactsPage(
-                data = uniqueNetworkContacts.map { it.toDomain() },
+                data = contacts,
                 hasNext = networkResult.hasNext,
                 totalCount = uniqueNetworkContacts.size,
             )
@@ -71,6 +63,35 @@ class ContactsRepositoryImpl(
                 message = "Unexpected database response for contact lookup.",
             )
         }
+    }
+
+    override suspend fun createNoteContact(draft: ContactDraft): Contact {
+        val response = networkRequestExecutor.execute(
+            url = "${serverUrlProvider.serverUrl.trimEnd('/')}/contacts/create-note",
+            method = HttpMethod.POST,
+            responseClass = ContactDto::class,
+            requestJsonBody = draft.toCreateNoteContactJson(),
+        )
+
+        val createdContact = response.toDomain()
+        cacheContact(createdContact)
+        return createdContact
+    }
+
+    override suspend fun updateContact(
+        contactId: String,
+        draft: ContactDraft,
+        currentContact: Contact,
+    ): Contact {
+        networkRequestExecutor.executeWithoutResponse(
+            url = "${serverUrlProvider.serverUrl.trimEnd('/')}/contacts/$contactId",
+            method = HttpMethod.PATCH,
+            requestJsonBody = draft.toUpdateContactJson(),
+        )
+
+        val updatedContact = currentContact.mergeWith(draft)
+        cacheContact(updatedContact)
+        return updatedContact
     }
 
     private suspend fun getContactsFromLocalDatabase(page: Int): ContactsPage {
@@ -121,7 +142,133 @@ class ContactsRepositoryImpl(
         return email ?: phone ?: id
     }
 
+    private suspend fun cacheContact(contact: Contact) {
+        databaseRequestExecutor.execute(
+            statement = "contacts.upsert",
+            operation = DatabaseOperation.INSERT,
+            arguments = mapOf(
+                "id" to contact.stableCacheKey(),
+                "name" to contact.name,
+                "phone" to contact.phone,
+                "email" to contact.email,
+                "interlocutorType" to contact.interlocutorType,
+            ),
+        )
+    }
+
     private companion object {
         const val DEFAULT_PAGE_SIZE = 50
+    }
+}
+
+private fun ContactDraft.toCreateNoteContactJson(): String {
+    return buildJsonObject(
+        "name" to name.trim().toJsonValue(),
+        "email" to email.normalizeNullable().toJsonValue(),
+        "phone" to phone.normalizeNullable().toJsonValue(),
+        "note" to note.normalizeNullable().toJsonValue(),
+        "tags" to tags.normalizeTags().toJsonArray(),
+    )
+}
+
+private fun ContactDraft.toUpdateContactJson(): String {
+    return buildJsonObject(
+        "name" to name.trim().toJsonValue(),
+        "email" to buildNullableValueJson(email.normalizeNullable()),
+        "phone" to buildNullableValueJson(phone.normalizeNullable()),
+        "note" to buildNullableValueJson(note.normalizeNullable()),
+        "tags" to buildNullableListValueJson(tags.normalizeTags().ifEmpty { null }),
+    )
+}
+
+private fun Contact.mergeWith(
+    draft: ContactDraft,
+): Contact {
+    return copy(
+        name = draft.name.trim(),
+        email = draft.email.normalizeNullable(),
+        phone = draft.phone.normalizeNullable(),
+        contact = contact?.copy(
+            note = draft.note.normalizeNullable(),
+            tags = draft.tags.normalizeTags(),
+        ),
+    )
+}
+
+private fun Contact.stableCacheKey(): String {
+    return contact?.contactId
+        ?: profile?.profileId
+        ?: email
+        ?: phone
+        ?: name
+}
+
+private fun buildJsonObject(vararg fields: Pair<String, String>): String {
+    return fields.joinToString(
+        prefix = "{",
+        postfix = "}",
+        separator = ",",
+    ) { (key, value) ->
+        "\"${key.escapeJson()}\":$value"
+    }
+}
+
+private fun buildNullableValueJson(value: String?): String {
+    return buildJsonObject(
+        "value" to value.toJsonValue(),
+    )
+}
+
+private fun buildNullableListValueJson(values: List<String>?): String {
+    val payload = values?.toJsonArray() ?: "null"
+
+    return buildJsonObject(
+        "value" to payload,
+    )
+}
+
+private fun String?.normalizeNullable(): String? {
+    return this?.trim()?.ifEmpty { null }
+}
+
+private fun List<String>.normalizeTags(): List<String> {
+    return map(String::trim)
+        .filter(String::isNotEmpty)
+        .distinct()
+}
+
+private fun String?.toJsonValue(): String {
+    return this?.let { "\"${it.escapeJson()}\"" } ?: "null"
+}
+
+private fun List<String>.toJsonArray(): String {
+    return joinToString(
+        prefix = "[",
+        postfix = "]",
+        separator = ",",
+    ) { it.toJsonValue() }
+}
+
+private fun String.escapeJson(): String {
+    return buildString(length + 8) {
+        for (char in this@escapeJson) {
+            when (char) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> {
+                    if (char < ' ') {
+                        append("\\u")
+                        append(char.code.toString(16).padStart(4, '0'))
+                    } else {
+                        append(char)
+                    }
+                }
+            }
+        }
     }
 }

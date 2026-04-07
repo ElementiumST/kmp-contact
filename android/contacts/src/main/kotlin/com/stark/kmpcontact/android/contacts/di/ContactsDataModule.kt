@@ -15,7 +15,9 @@ import com.stark.kmpcontact.data.network.NetworkRequestExecutor
 import com.stark.kmpcontact.data.network.ServerUrlProvider
 import com.stark.kmpcontact.data.repository.ContactsRepositoryImpl
 import com.stark.kmpcontact.domain.repository.ContactsRepository
+import com.stark.kmpcontact.domain.usecase.CreateNoteContactUseCase
 import com.stark.kmpcontact.domain.usecase.GetContactsUseCase
+import com.stark.kmpcontact.domain.usecase.UpdateContactUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -114,6 +116,20 @@ object ContactsDataModule {
     fun provideGetContactsUseCase(
         contactsRepository: ContactsRepository,
     ): GetContactsUseCase = GetContactsUseCase(
+        contactsRepository = contactsRepository,
+    )
+
+    @Provides
+    fun provideCreateNoteContactUseCase(
+        contactsRepository: ContactsRepository,
+    ): CreateNoteContactUseCase = CreateNoteContactUseCase(
+        contactsRepository = contactsRepository,
+    )
+
+    @Provides
+    fun provideUpdateContactUseCase(
+        contactsRepository: ContactsRepository,
+    ): UpdateContactUseCase = UpdateContactUseCase(
         contactsRepository = contactsRepository,
     )
 }

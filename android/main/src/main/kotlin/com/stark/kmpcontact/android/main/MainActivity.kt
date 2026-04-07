@@ -3,7 +3,7 @@ package com.stark.kmpcontact.android.main
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
+import com.stark.kmpcontact.android.contacts.ui.theme.ContactsTheme
 import com.stark.kmpcontact.android.contacts.ui.ContactsScreen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
+            ContactsTheme {
                 ContactsScreen()
             }
         }

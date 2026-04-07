@@ -45,6 +45,21 @@ class OkHttpNetworkRequestExecutor(
         )
     }
 
+    override suspend fun executeWithoutResponse(
+        url: String,
+        method: HttpMethod,
+        headers: Map<String, String>,
+        requestJsonBody: String?,
+    ) = withContext(Dispatchers.IO) {
+        executeWithoutResponseInternal(
+            url = url,
+            method = method,
+            headers = headers,
+            requestJsonBody = requestJsonBody,
+            allowReLogin = true,
+        )
+    }
+
     private fun <T : Any> executeInternal(
         url: String,
         method: HttpMethod,
@@ -173,6 +188,113 @@ class OkHttpNetworkRequestExecutor(
         return result ?: throw NetworkException(
             code = responseCode,
             message = "Network response is unexpectedly null for $url.",
+        )
+    }
+
+    private fun executeWithoutResponseInternal(
+        url: String,
+        method: HttpMethod,
+        headers: Map<String, String>,
+        requestJsonBody: String?,
+        allowReLogin: Boolean,
+    ) {
+        val requestHeaders = buildHeaders(headers)
+
+        logRequestStart(
+            method = method,
+            url = url,
+            headers = requestHeaders,
+            requestJsonBody = sanitizeBodyForLog(url, requestJsonBody),
+        )
+
+        val requestBuilder = Request.Builder()
+            .url(url)
+
+        requestHeaders.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value)
+        }
+
+        val requestBody = requestJsonBody?.toRequestBody(JSON_MEDIA_TYPE)
+
+        when (method) {
+            HttpMethod.GET -> requestBuilder.get()
+            HttpMethod.POST -> requestBuilder.post(requestBody ?: EMPTY_REQUEST_BODY)
+            HttpMethod.PUT -> requestBuilder.put(requestBody ?: EMPTY_REQUEST_BODY)
+            HttpMethod.PATCH -> requestBuilder.patch(requestBody ?: EMPTY_REQUEST_BODY)
+            HttpMethod.DELETE -> {
+                if (requestBody == null) {
+                    requestBuilder.delete()
+                } else {
+                    requestBuilder.delete(requestBody)
+                }
+            }
+        }
+
+        var responseCode: Int? = null
+        var responsePreview: String? = null
+        var failure: Throwable? = null
+
+        val elapsedMs = measureTimeMillis {
+            try {
+                okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                    val responseBody = response.body?.string().orEmpty()
+                    responseCode = response.code
+                    responsePreview = sanitizeBodyForLog(url, responseBody.take(LOG_PREVIEW_LIMIT))
+
+                    if (!response.isSuccessful) {
+                        throw NetworkException(
+                            code = response.code,
+                            message = responseBody.ifBlank { response.message },
+                        )
+                    }
+                }
+            } catch (networkException: NetworkException) {
+                failure = networkException
+            } catch (throwable: Throwable) {
+                failure = NetworkException(
+                    code = null,
+                    message = throwable.message ?: "Network request failed for $url.",
+                    cause = throwable,
+                )
+            }
+        }
+
+        if (failure != null) {
+            val networkFailure = failure as? NetworkException
+            if (allowReLogin && networkFailure?.code == UNAUTHORIZED_CODE && !isLoginRequest(url)) {
+                val loginResponse = login()
+                authSessionStore.saveSessionId(loginResponse.sessionId)
+                Log.d(LOG_TAG, "HTTP auth recovered: obtained new session and retrying $method $url")
+                return executeWithoutResponseInternal(
+                    url = url,
+                    method = method,
+                    headers = headers,
+                    requestJsonBody = requestJsonBody,
+                    allowReLogin = false,
+                )
+            }
+
+            if (shouldNotifyConnectionLost(networkFailure)) {
+                networkStatusNotifier.notifyConnectionLost()
+            }
+
+            logRequestFailure(
+                method = method,
+                url = url,
+                elapsedMs = elapsedMs,
+                responseCode = responseCode,
+                throwable = failure!!,
+                responsePreview = responsePreview,
+            )
+            throw failure!!
+        }
+
+        logRequestSuccess(
+            method = method,
+            url = url,
+            elapsedMs = elapsedMs,
+            responseCode = responseCode,
+            responsePreview = responsePreview,
         )
     }
 

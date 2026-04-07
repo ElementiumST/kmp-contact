@@ -10,4 +10,11 @@ interface NetworkRequestExecutor {
         headers: Map<String, String> = emptyMap(),
         requestJsonBody: String? = null,
     ): T
+
+    suspend fun executeWithoutResponse(
+        url: String,
+        method: HttpMethod,
+        headers: Map<String, String> = emptyMap(),
+        requestJsonBody: String? = null,
+    )
 }

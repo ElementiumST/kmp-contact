@@ -43,6 +43,21 @@ class FetchNetworkRequestExecutor(
         )
     }
 
+    override suspend fun executeWithoutResponse(
+        url: String,
+        method: HttpMethod,
+        headers: Map<String, String>,
+        requestJsonBody: String?,
+    ) {
+        executeWithoutResponseInternal(
+            url = url,
+            method = method,
+            headers = headers,
+            requestJsonBody = requestJsonBody,
+            allowReLogin = true,
+        )
+    }
+
     private suspend fun <T : Any> executeInternal(
         url: String,
         method: HttpMethod,
@@ -127,6 +142,72 @@ class FetchNetworkRequestExecutor(
             logRequestFailure(method, url, statusCode, sanitizeBodyForLog(url, responseText), wrapped)
             throw wrapped
         }
+    }
+
+    private suspend fun executeWithoutResponseInternal(
+        url: String,
+        method: HttpMethod,
+        headers: Map<String, String>,
+        requestJsonBody: String?,
+        allowReLogin: Boolean,
+    ) {
+        val requestHeaders = buildHeaders(headers)
+        logRequestStart(method, url, requestHeaders, sanitizeBodyForLog(url, requestJsonBody))
+
+        val responseText: String
+        val statusCode: Int
+
+        try {
+            val response = window.fetch(
+                input = url,
+                init = RequestInit(
+                    method = method.name,
+                    headers = requestHeaders.toJsHeaders(),
+                    body = requestJsonBody,
+                ),
+            ).await()
+
+            statusCode = response.status.toInt()
+            responseText = response.text().await()
+
+            if (!response.ok) {
+                throw NetworkException(
+                    code = statusCode,
+                    message = responseText.ifBlank { response.statusText },
+                )
+            }
+        } catch (networkException: NetworkException) {
+            if (allowReLogin && networkException.code == UNAUTHORIZED_CODE && !isLoginRequest(url)) {
+                val loginResponse = login()
+                sessionStore.saveSessionId(loginResponse.sessionId)
+                console.log("HTTP auth recovered: retrying $method $url")
+                return executeWithoutResponseInternal(
+                    url = url,
+                    method = method,
+                    headers = headers,
+                    requestJsonBody = requestJsonBody,
+                    allowReLogin = false,
+                )
+            }
+
+            if (networkException.code == null) {
+                networkStatusNotifier.notifyConnectionLost()
+            }
+
+            logRequestFailure(method, url, networkException.code, sanitizeBodyForLog(url, null), networkException)
+            throw networkException
+        } catch (throwable: Throwable) {
+            val wrapped = NetworkException(
+                code = null,
+                message = throwable.message ?: "Network request failed for $url.",
+                cause = throwable,
+            )
+            networkStatusNotifier.notifyConnectionLost()
+            logRequestFailure(method, url, null, "<empty>", wrapped)
+            throw wrapped
+        }
+
+        logRequestSuccess(method, url, statusCode, sanitizeBodyForLog(url, responseText))
     }
 
     private fun buildHeaders(headers: Map<String, String>): Map<String, String> {
