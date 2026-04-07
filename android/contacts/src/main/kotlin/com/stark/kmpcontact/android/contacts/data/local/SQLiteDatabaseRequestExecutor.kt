@@ -77,6 +77,57 @@ class SQLiteDatabaseRequestExecutor(
                         }
                     }
 
+                    statement == "contacts.selectPage" && operation == DatabaseOperation.QUERY -> {
+                        val limit = (arguments["limit"] as? Int)
+                            ?: throw DatabaseException(
+                                code = null,
+                                message = "Missing limit argument for contacts.selectPage.",
+                            )
+                        val offset = (arguments["offset"] as? Int)
+                            ?: throw DatabaseException(
+                                code = null,
+                                message = "Missing offset argument for contacts.selectPage.",
+                            )
+
+                        contactsSQLiteOpenHelper.readableDatabase.query(
+                            "contacts",
+                            arrayOf("id", "name", "phone", "email", "interlocutor_type"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            "name ASC",
+                            "$offset, $limit",
+                        ).use { cursor ->
+                            buildList {
+                                while (cursor.moveToNext()) {
+                                    add(
+                                        ContactEntity(
+                                            id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
+                                            name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                                            phone = cursor.getString(cursor.getColumnIndexOrThrow("phone")),
+                                            email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
+                                            interlocutorType = cursor.getString(cursor.getColumnIndexOrThrow("interlocutor_type")),
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    statement == "contacts.count" && operation == DatabaseOperation.QUERY -> {
+                        contactsSQLiteOpenHelper.readableDatabase.rawQuery(
+                            "SELECT COUNT(*) FROM contacts",
+                            null,
+                        ).use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                cursor.getInt(0)
+                            } else {
+                                0
+                            }
+                        }
+                    }
+
                     else -> throw DatabaseException(
                         code = null,
                         message = "Unsupported database request: $statement / $operation",

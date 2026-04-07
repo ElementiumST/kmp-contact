@@ -1,11 +1,15 @@
 package com.stark.kmpcontact.android.contacts.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.stark.kmpcontact.android.contacts.BuildConfig
+import com.stark.kmpcontact.android.contacts.data.auth.AuthConfig
+import com.stark.kmpcontact.android.contacts.data.auth.AuthSessionStore
 import com.stark.kmpcontact.android.contacts.data.local.ContactsSQLiteOpenHelper
 import com.stark.kmpcontact.android.contacts.data.local.SQLiteDatabaseRequestExecutor
 import com.stark.kmpcontact.android.contacts.data.remote.OkHttpNetworkRequestExecutor
+import com.stark.kmpcontact.android.contacts.data.remote.NetworkStatusNotifier
 import com.stark.kmpcontact.data.database.DatabaseRequestExecutor
 import com.stark.kmpcontact.data.network.NetworkRequestExecutor
 import com.stark.kmpcontact.data.network.ServerUrlProvider
@@ -34,9 +38,33 @@ object ContactsDataModule {
 
     @Provides
     @Singleton
+    fun provideSharedPreferences(
+        @ApplicationContext context: Context,
+    ): SharedPreferences = context.getSharedPreferences("contacts_auth", Context.MODE_PRIVATE)
+
+    @Provides
+    @Singleton
     fun provideContactsSQLiteOpenHelper(
         @ApplicationContext context: Context,
     ): ContactsSQLiteOpenHelper = ContactsSQLiteOpenHelper(context)
+
+    @Provides
+    @Singleton
+    fun provideAuthSessionStore(
+        sharedPreferences: SharedPreferences,
+    ): AuthSessionStore = AuthSessionStore(sharedPreferences)
+
+    @Provides
+    @Singleton
+    fun provideAuthConfig(): AuthConfig = AuthConfig(
+        login = BuildConfig.AUTH_LOGIN,
+        password = BuildConfig.AUTH_PASSWORD,
+        rememberMe = BuildConfig.AUTH_REMEMBER_ME,
+    )
+
+    @Provides
+    @Singleton
+    fun provideNetworkStatusNotifier(): NetworkStatusNotifier = NetworkStatusNotifier()
 
     @Provides
     @Singleton
@@ -49,9 +77,17 @@ object ContactsDataModule {
     fun provideNetworkRequestExecutor(
         okHttpClient: OkHttpClient,
         gson: Gson,
+        serverUrlProvider: ServerUrlProvider,
+        authSessionStore: AuthSessionStore,
+        authConfig: AuthConfig,
+        networkStatusNotifier: NetworkStatusNotifier,
     ): NetworkRequestExecutor = OkHttpNetworkRequestExecutor(
         okHttpClient = okHttpClient,
         gson = gson,
+        serverUrlProvider = serverUrlProvider,
+        authSessionStore = authSessionStore,
+        authConfig = authConfig,
+        networkStatusNotifier = networkStatusNotifier,
     )
 
     @Provides

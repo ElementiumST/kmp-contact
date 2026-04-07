@@ -21,6 +21,9 @@ android {
     defaultConfig {
         minSdk = libs.versions.androidMinSdk.get().toInt()
         buildConfigField("String", "SERVER_URL", "\"https://alpha.hi-tech.org/api/rest\"")
+        buildConfigField("String", "AUTH_LOGIN", "\"mobileuser3@testivcs.su\"")
+        buildConfigField("String", "AUTH_PASSWORD", "\"test\"")
+        buildConfigField("boolean", "AUTH_REMEMBER_ME", "false")
     }
 
     buildFeatures {

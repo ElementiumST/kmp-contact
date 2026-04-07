@@ -2,9 +2,14 @@ package com.stark.kmpcontact.android.contacts.data.remote
 
 import android.util.Log
 import com.google.gson.Gson
+import com.stark.kmpcontact.android.contacts.data.auth.AuthConfig
+import com.stark.kmpcontact.android.contacts.data.auth.AuthSessionStore
+import com.stark.kmpcontact.android.contacts.data.remote.auth.LoginRequestDto
+import com.stark.kmpcontact.android.contacts.data.remote.auth.LoginResponseDto
 import com.stark.kmpcontact.data.network.HttpMethod
 import com.stark.kmpcontact.data.network.NetworkException
 import com.stark.kmpcontact.data.network.NetworkRequestExecutor
+import com.stark.kmpcontact.data.network.ServerUrlProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -17,6 +22,10 @@ import kotlin.system.measureTimeMillis
 class OkHttpNetworkRequestExecutor(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
+    private val serverUrlProvider: ServerUrlProvider,
+    private val authSessionStore: AuthSessionStore,
+    private val authConfig: AuthConfig,
+    private val networkStatusNotifier: NetworkStatusNotifier,
 ) : NetworkRequestExecutor {
 
     override suspend fun <T : Any> execute(
@@ -26,17 +35,37 @@ class OkHttpNetworkRequestExecutor(
         headers: Map<String, String>,
         requestJsonBody: String?,
     ): T = withContext(Dispatchers.IO) {
+        executeInternal(
+            url = url,
+            method = method,
+            responseClass = responseClass,
+            headers = headers,
+            requestJsonBody = requestJsonBody,
+            allowReLogin = true,
+        )
+    }
+
+    private fun <T : Any> executeInternal(
+        url: String,
+        method: HttpMethod,
+        responseClass: KClass<T>,
+        headers: Map<String, String>,
+        requestJsonBody: String?,
+        allowReLogin: Boolean,
+    ): T {
+        val requestHeaders = buildHeaders(headers)
+
         logRequestStart(
             method = method,
             url = url,
-            headers = headers,
-            requestJsonBody = requestJsonBody,
+            headers = requestHeaders,
+            requestJsonBody = sanitizeBodyForLog(url, requestJsonBody),
         )
 
         val requestBuilder = Request.Builder()
             .url(url)
 
-        headers.forEach { (key, value) ->
+        requestHeaders.forEach { (key, value) ->
             requestBuilder.addHeader(key, value)
         }
 
@@ -66,7 +95,7 @@ class OkHttpNetworkRequestExecutor(
                 okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
                     val responseBody = response.body?.string().orEmpty()
                     responseCode = response.code
-                    responsePreview = responseBody.take(LOG_PREVIEW_LIMIT)
+                    responsePreview = sanitizeBodyForLog(url, responseBody.take(LOG_PREVIEW_LIMIT))
 
                     if (!response.isSuccessful) {
                         throw NetworkException(
@@ -91,12 +120,37 @@ class OkHttpNetworkRequestExecutor(
                         )
                     }
                 }
+            } catch (networkException: NetworkException) {
+                failure = networkException
             } catch (throwable: Throwable) {
-                failure = throwable
+                failure = NetworkException(
+                    code = null,
+                    message = throwable.message ?: "Network request failed for $url.",
+                    cause = throwable,
+                )
             }
         }
 
         if (failure != null) {
+            val networkFailure = failure as? NetworkException
+            if (allowReLogin && networkFailure?.code == UNAUTHORIZED_CODE && !isLoginRequest(url)) {
+                val loginResponse = login()
+                authSessionStore.saveSessionId(loginResponse.sessionId)
+                Log.d(LOG_TAG, "HTTP auth recovered: obtained new session and retrying $method $url")
+                return executeInternal(
+                    url = url,
+                    method = method,
+                    responseClass = responseClass,
+                    headers = headers,
+                    requestJsonBody = requestJsonBody,
+                    allowReLogin = false,
+                )
+            }
+
+            if (shouldNotifyConnectionLost(networkFailure)) {
+                networkStatusNotifier.notifyConnectionLost()
+            }
+
             logRequestFailure(
                 method = method,
                 url = url,
@@ -116,9 +170,39 @@ class OkHttpNetworkRequestExecutor(
             responsePreview = responsePreview,
         )
 
-        result ?: throw NetworkException(
+        return result ?: throw NetworkException(
             code = responseCode,
             message = "Network response is unexpectedly null for $url.",
+        )
+    }
+
+    private fun buildHeaders(headers: Map<String, String>): Map<String, String> {
+        val resolvedHeaders = headers.toMutableMap()
+        val sessionId = authSessionStore.getSessionId()
+        if (!sessionId.isNullOrBlank()) {
+            resolvedHeaders[SESSION_HEADER] = sessionId
+        }
+        return resolvedHeaders
+    }
+
+    private fun login(): LoginResponseDto {
+        authSessionStore.clear()
+
+        val loginRequestJson = gson.toJson(
+            LoginRequestDto(
+                login = authConfig.login,
+                password = authConfig.password,
+                rememberMe = authConfig.rememberMe,
+            ),
+        )
+
+        return executeInternal(
+            url = "${serverUrlProvider.serverUrl.trimEnd('/')}/login",
+            method = HttpMethod.POST,
+            responseClass = LoginResponseDto::class,
+            headers = emptyMap(),
+            requestJsonBody = loginRequestJson,
+            allowReLogin = false,
         )
     }
 
@@ -170,14 +254,36 @@ class OkHttpNetworkRequestExecutor(
     private fun Map<String, String>.formatForLog(): String {
         if (isEmpty()) return "{}"
         return entries.joinToString(prefix = "{", postfix = "}") { (key, value) ->
-            "$key=${value.take(HEADER_VALUE_PREVIEW_LIMIT)}"
+            if (key.equals(SESSION_HEADER, ignoreCase = true) || key.equals(AUTHORIZATION_HEADER, ignoreCase = true)) {
+                "$key=<redacted>"
+            } else {
+                "$key=${value.take(HEADER_VALUE_PREVIEW_LIMIT)}"
+            }
         }
     }
+
+    private fun sanitizeBodyForLog(
+        url: String,
+        body: String?,
+    ): String {
+        if (body.isNullOrBlank()) return "<empty>"
+        if (isLoginRequest(url)) return "<redacted>"
+        return body.take(LOG_PREVIEW_LIMIT)
+    }
+
+    private fun isLoginRequest(url: String): Boolean = url.contains("/login")
+
+    private fun shouldNotifyConnectionLost(
+        networkFailure: NetworkException?,
+    ): Boolean = networkFailure != null && networkFailure.code == null
 
     private companion object {
         private const val LOG_TAG = "NetworkExecutor"
         private const val LOG_PREVIEW_LIMIT = 300
         private const val HEADER_VALUE_PREVIEW_LIMIT = 100
+        private const val UNAUTHORIZED_CODE = 401
+        private const val SESSION_HEADER = "Session"
+        private const val AUTHORIZATION_HEADER = "Authorization"
 
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         val EMPTY_REQUEST_BODY = ByteArray(0).toRequestBody(JSON_MEDIA_TYPE)
