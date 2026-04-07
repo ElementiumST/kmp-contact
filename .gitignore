@@ -1,0 +1,28 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+**/build/
+out/
+android/contacts/build/
+
+# Local environment
+local.properties
+.env
+.env.*
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# Android generated artifacts
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
