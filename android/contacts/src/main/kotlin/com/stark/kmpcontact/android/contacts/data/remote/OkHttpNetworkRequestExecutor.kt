@@ -4,12 +4,12 @@ import android.util.Log
 import com.google.gson.Gson
 import com.stark.kmpcontact.android.contacts.data.auth.AuthConfig
 import com.stark.kmpcontact.android.contacts.data.auth.AuthSessionStore
-import com.stark.kmpcontact.android.contacts.data.remote.auth.LoginRequestDto
-import com.stark.kmpcontact.android.contacts.data.remote.auth.LoginResponseDto
 import com.stark.kmpcontact.data.network.HttpMethod
 import com.stark.kmpcontact.data.network.NetworkException
 import com.stark.kmpcontact.data.network.NetworkRequestExecutor
 import com.stark.kmpcontact.data.network.ServerUrlProvider
+import com.stark.kmpcontact.data.remote.auth.LoginRequestDto
+import com.stark.kmpcontact.data.remote.auth.LoginResponseDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
