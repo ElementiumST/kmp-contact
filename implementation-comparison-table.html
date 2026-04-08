@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Сравнение двух реализаций</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 32px;
+      color: #222;
+      line-height: 1.45;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      border: 1px solid #999;
+      padding: 12px;
+      vertical-align: top;
+      font-size: 12px;
+    }
+
+    th {
+      background: #f2f2f2;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .section-title {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .label {
+      font-weight: 600;
+    }
+
+    .note {
+      margin-top: 18px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Сравнение двух реализаций</h1>
+  <p>
+    Таблица сравнивает <strong>ru/iva</strong> как более монолитную Android-ориентированную реализацию
+    и <strong>kmp-contact</strong> как более слоистую и модульную реализацию.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ru/iva</th>
+        <th>kmp-contact</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <span class="section-title">Архитектурный стиль</span>
+          <span class="label">Плюсы:</span> быстрый старт разработки, легко собирать функциональность в одном месте, меньше формальных слоев.<br />
+          <span class="label">Минусы:</span> высокая связанность, смешение UI, логики и эффектов, сложнее локализовать изменения.
+        </td>
+        <td>
+          <span class="section-title">Архитектурный стиль</span>
+          <span class="label">Плюсы:</span> явные слои <code>ui -&gt; presentation -&gt; domain -&gt; data</code>, лучше читается ответственность каждого модуля, проще расширять.<br />
+          <span class="label">Минусы:</span> выше порог входа, больше файлов и абстракций даже для простой задачи.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Управление состоянием</span>
+          <span class="label">Плюсы:</span> единая точка хранения данных, удобно быстро пробрасывать состояние в экран.<br />
+          <span class="label">Минусы:</span> глобальное mutable state, трудно понять кто и где меняет данные, растет риск побочных эффектов.
+        </td>
+        <td>
+          <span class="section-title">Управление состоянием</span>
+          <span class="label">Плюсы:</span> состояние локализовано во ViewModel, используются StateFlow и явные методы событий, поток обновлений предсказуем.<br />
+          <span class="label">Минусы:</span> нужно поддерживать больше явных моделей состояния и методов обновления.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Связь UI и логики</span>
+          <span class="label">Плюсы:</span> минимальная дистанция между экраном и действием, быстро править поведение.<br />
+          <span class="label">Минусы:</span> UI сильнее завязан на внутреннюю логику и глобальные контроллеры, труднее переиспользовать и тестировать экран отдельно.
+        </td>
+        <td>
+          <span class="section-title">Связь UI и логики</span>
+          <span class="label">Плюсы:</span> UI в основном отображает state и отправляет callbacks, меньше знания о деталях реализации.<br />
+          <span class="label">Минусы:</span> для простых сценариев может казаться избыточным количество прослоек между кнопкой и результатом.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Работа с бизнес-логикой</span>
+          <span class="label">Плюсы:</span> логику можно быстро писать рядом с feature-кодом.<br />
+          <span class="label">Минусы:</span> бизнес-правила со временем расползаются по экранным файлам и helper-функциям, труднее переиспользовать между платформами.
+        </td>
+        <td>
+          <span class="section-title">Работа с бизнес-логикой</span>
+          <span class="label">Плюсы:</span> use case и domain contract делают сценарии явными, бизнес-логика отделена от платформы и UI.<br />
+          <span class="label">Минусы:</span> часть use case может выглядеть слишком тонкой оберткой над репозиторием.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Доступ к данным</span>
+          <span class="label">Плюсы:</span> быстро организовать прямой вызов сети или локальной логики без большого количества договоренностей.<br />
+          <span class="label">Минусы:</span> сетевой и экранный код сближаются, сложнее безопасно менять API, кеш и fallback.
+        </td>
+        <td>
+          <span class="section-title">Доступ к данным</span>
+          <span class="label">Плюсы:</span> репозиторий централизует orchestration, маппинг, кеш и fallback, нижний слой владеет источниками данных.<br />
+          <span class="label">Минусы:</span> чтобы понять полный сценарий, иногда нужно пройти через несколько файлов.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">DI и создание зависимостей</span>
+          <span class="label">Плюсы:</span> можно быстро стартовать без сложной конфигурации контейнера.<br />
+          <span class="label">Минусы:</span> зависимости часто менее явные, больше скрытых связей, тяжелее заменять реализации.
+        </td>
+        <td>
+          <span class="section-title">DI и создание зависимостей</span>
+          <span class="label">Плюсы:</span> Hilt и явные провайдеры делают граф зависимостей прозрачнее, проще подменять реализации.<br />
+          <span class="label">Минусы:</span> больше инфраструктурного кода и необходимости поддерживать wiring.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Тестируемость</span>
+          <span class="label">Плюсы:</span> отдельные utility-функции тестировать можно.<br />
+          <span class="label">Минусы:</span> глобальный state, платформенные зависимости и скрытые эффекты усложняют изолированные тесты и mocks.
+        </td>
+        <td>
+          <span class="section-title">Тестируемость</span>
+          <span class="label">Плюсы:</span> контракты Repository, UseCase, Executor лучше подходят для unit-тестов и подмены зависимостей.<br />
+          <span class="label">Минусы:</span> тестовый набор нужно продумывать по слоям, а не только по экрану.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Жизненный цикл и корутины</span>
+          <span class="label">Плюсы:</span> проще быстро запускать фоновые задачи.<br />
+          <span class="label">Минусы:</span> при использовании глобальных scope и глобальных объектов сложнее контролировать отмену, утечки и реакцию на lifecycle.
+        </td>
+        <td>
+          <span class="section-title">Жизненный цикл и корутины</span>
+          <span class="label">Плюсы:</span> viewModelScope и scoped-компоненты лучше соответствуют lifecycle, поведение предсказуемее.<br />
+          <span class="label">Минусы:</span> больше ограничений на то, где и как запускать операции.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Масштабирование кодовой базы</span>
+          <span class="label">Плюсы:</span> на маленьком проекте можно двигаться очень быстро.<br />
+          <span class="label">Минусы:</span> с ростом экранов и сценариев резко дорожают изменения, поиск причины бага и оценка влияния.
+        </td>
+        <td>
+          <span class="section-title">Масштабирование кодовой базы</span>
+          <span class="label">Плюсы:</span> цена изменений растет медленнее за счет модульности и разделения ответственности.<br />
+          <span class="label">Минусы:</span> первые этапы разработки могут идти чуть медленнее из-за архитектурной дисциплины.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Порог входа для нового разработчика</span>
+          <span class="label">Плюсы:</span> можно быстро начать править, если понять несколько центральных файлов.<br />
+          <span class="label">Минусы:</span> реальная логика часто неявно связана и знание проекта накапливается через контекст в голове.
+        </td>
+        <td>
+          <span class="section-title">Порог входа для нового разработчика</span>
+          <span class="label">Плюсы:</span> по структуре проще понять, где искать domain, data, UI и platform-specific код.<br />
+          <span class="label">Минусы:</span> новичку сначала нужно освоить архитектуру, DI и границы слоев.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Переиспользование между платформами</span>
+          <span class="label">Плюсы:</span> если проект только Android-only, можно не платить за мультиплатформенную архитектуру.<br />
+          <span class="label">Минусы:</span> повторное использование для web или iOS почти не заложено архитектурно.
+        </td>
+        <td>
+          <span class="section-title">Переиспользование между платформами</span>
+          <span class="label">Плюсы:</span> shared-модули <code>kmp/domain</code>, <code>kmp/data</code>, <code>kmp/support</code> дают базу для переноса сценариев между платформами.<br />
+          <span class="label">Минусы:</span> не вся логика одинаково удобна для каждой платформы, иногда требуется дополнительная адаптация.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Скорость прототипирования</span>
+          <span class="label">Плюсы:</span> обычно выше на короткой дистанции, потому что меньше формальных ограничений.<br />
+          <span class="label">Минусы:</span> часть скорости потом возвращается техническим долгом.
+        </td>
+        <td>
+          <span class="section-title">Скорость прототипирования</span>
+          <span class="label">Плюсы:</span> результат чаще сразу ближе к долгоживущему production-коду.<br />
+          <span class="label">Минусы:</span> для прототипа может ощущаться медленнее из-за слоев и архитектурных решений.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="section-title">Поддержка в долгую</span>
+          <span class="label">Плюсы:</span> приемлема, пока команда маленькая и проект ограничен.<br />
+          <span class="label">Минусы:</span> зависимость от автора, который все помнит, выше риск регрессий и дороже рефакторинг.
+        </td>
+        <td>
+          <span class="section-title">Поддержка в долгую</span>
+          <span class="label">Плюсы:</span> лучше подходит для долгой поддержки, роста команды и эволюции требований.<br />
+          <span class="label">Минусы:</span> требует дисциплины, иначе архитектурные границы начнут размываться.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="note">
+    Короткий вывод: первая реализация выигрывает в локальной скорости разработки, а вторая - в управляемости сложности и поддержке по мере роста системы.
+  </p>
+</body>
+</html>

@@ -96,6 +96,7 @@ class ContactsViewModelImpl @Inject constructor(
         selectedContact.value = null
     }
 
+    // 1775
     override fun onSearchQueryChange(value: String) {
         searchQuery.value = value
     }
