@@ -1,0 +1,15 @@
+---
+description: Shared KMP layering rules for domain, data, and support
+globs: kmp/**/*.kt
+alwaysApply: false
+---
+
+# Shared KMP Rules
+
+- Keep `kmp/domain` limited to domain models, repository contracts, and thin use cases.
+- Keep `kmp/data` responsible for repository implementation, mapping, request/response handling, cache persistence, and fallback from network to local data.
+- Keep `kmp/support` focused on reusable cross-platform helpers such as paging, not platform wiring.
+- Do not introduce Android, DOM, IndexedDB, OkHttp, or other platform-specific APIs into `commonMain`.
+- Prefer `toDomain()`-style mapping extensions and shared helper functions near the data layer instead of duplicating conversion logic in feature modules.
+- When changing shared contracts, check the impact on Android, Web, and iOS integration points before finishing.
+- Preserve stable-key and cache-key behavior unless the change explicitly updates all dependent code paths.

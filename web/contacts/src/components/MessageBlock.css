@@ -1,0 +1,23 @@
+.message-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-block__text {
+  margin: 0;
+}
+
+.message-block--default {
+  color: #1a1a1a;
+}
+
+.message-block--warning {
+  background: #ffe9b3;
+  color: #5c4300;
+}
+
+.message-block--error {
+  background: #ffd9d9;
+  color: #7b1f1f;
+}

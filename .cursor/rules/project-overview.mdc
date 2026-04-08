@@ -1,0 +1,14 @@
+---
+description: Core project architecture and safe change boundaries
+alwaysApply: true
+---
+
+# kmp-contact Overview
+
+- This is a multi-module Kotlin Multiplatform project with shared modules in `kmp/` and platform modules in `android/`, `web/`, and `ios/`.
+- Preserve dependency direction: platform modules depend on shared modules, `kmp/data` depends on `kmp/domain`, and `kmp/support` depends on `kmp/domain`.
+- Keep `commonMain` platform-agnostic. Do not introduce Android, browser, or iOS-specific APIs into shared code.
+- Make changes in the narrowest layer that owns the behavior instead of patching around it from UI code.
+- Treat `kmp/data` as the owner of repository orchestration, DTO/entity mapping, request payloads, cache writes, and network fallback behavior.
+- Android uses Hilt for DI; Web uses manual wiring in `web/contacts/.../main.kt`; the repo only contains an iOS helper module, not a full iOS app shell.
+- Do not turn current local WIP into a permanent project convention unless the task explicitly requires it.

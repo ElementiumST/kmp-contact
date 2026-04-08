@@ -1,0 +1,14 @@
+---
+description: Web entry, controller, and platform adapter conventions
+globs: web/**/*.kt
+alwaysApply: false
+---
+
+# Web Rules
+
+- Keep top-level web wiring manual in `web/contacts/.../main.kt`; do not assume Android-style Hilt patterns exist here.
+- Keep browser-specific adapters in `web/contacts/.../platform`.
+- Keep DOM coordination and screen behavior in `web/contacts/.../ui`, following the existing controller pattern.
+- Reuse shared `kmp/data` and `kmp/support` logic instead of re-implementing paging or repository behavior in JS code.
+- When shared contracts change, update the web bootstrap and platform adapters deliberately instead of relying on Android conventions.
+- Keep web-only auth/session/network details inside the web platform layer rather than leaking them into shared modules.

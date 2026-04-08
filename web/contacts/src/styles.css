@@ -1,0 +1,86 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  color: #1a1a1a;
+}
+
+#root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-title {
+  margin: 0 0 24px;
+}
+
+.section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.contact-card {
+  cursor: pointer;
+}
+
+.contact-card__title,
+.details-title {
+  margin: 0 0 8px;
+}
+
+.contact-card__text {
+  margin: 4px 0;
+}
+
+.detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-weight: 700;
+}
+
+.detail-value {
+  word-break: break-word;
+}
+
+.actions-row {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.primary-button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2d6cdf;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.back-button {
+  margin-bottom: 16px;
+}

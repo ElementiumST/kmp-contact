@@ -1,0 +1,15 @@
+---
+description: Android module structure for contacts feature, DI, and Compose
+globs: android/**/*.kt
+alwaysApply: false
+---
+
+# Android Rules
+
+- Treat `android/main` as a thin app shell with bootstrap code only.
+- Keep feature code in `android/contacts`, following the current package split: `ui`, `presentation`, `di`, `data/local`, `data/remote`, and `data/auth`.
+- Use Hilt for Android dependency wiring. New Android service wiring should normally live in `android/contacts/.../di`.
+- Keep Compose rendering in `ui` and state/interaction logic in `presentation`.
+- Android-specific implementations of shared contracts belong in Android executors such as the local database and network request executors.
+- Prefer injecting use cases or the `ContactsRepository` contract rather than creating ad hoc data singletons in UI code.
+- If a change needs server/auth configuration, keep it aligned with the existing Android module configuration pattern instead of leaking it into shared code.

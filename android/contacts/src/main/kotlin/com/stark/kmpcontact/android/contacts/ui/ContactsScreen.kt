@@ -31,12 +31,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.stark.kmpcontact.android.contacts.presentation.ContactsDestination
 import com.stark.kmpcontact.android.contacts.presentation.ContactsViewModel
+import com.stark.kmpcontact.android.contacts.presentation.ContactsViewModelImpl
 import com.stark.kmpcontact.domain.model.Contact
 import com.stark.kmpcontact.support.paging.PagingState
 
 @Composable
 fun ContactsScreen(
-    viewModel: ContactsViewModel = hiltViewModel(),
+    viewModel: ContactsViewModel = hiltViewModel<ContactsViewModelImpl>(),
     modifier: Modifier = Modifier,
 ) {
     val destination by viewModel.destination.collectAsState()
