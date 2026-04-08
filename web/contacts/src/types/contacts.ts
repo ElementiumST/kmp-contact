@@ -1,4 +1,5 @@
 export interface Contact {
+  stableKey: string;
   name: string;
   email?: string | null;
   phone?: string | null;
@@ -72,6 +73,12 @@ export interface PagingState<T> {
   error: PagingError | null;
 }
 
+export interface ContactsViewState {
+  selectedContact: Contact | null;
+  pagingState: PagingState<Contact>;
+  notification: string | null;
+}
+
 export function createInitialPagingState<T>(): PagingState<T> {
   return {
     items: [],
@@ -80,6 +87,14 @@ export function createInitialPagingState<T>(): PagingState<T> {
     hasNext: true,
     nextPage: 1,
     error: null,
+  };
+}
+
+export function createInitialContactsViewState(): ContactsViewState {
+  return {
+    selectedContact: null,
+    pagingState: createInitialPagingState<Contact>(),
+    notification: null,
   };
 }
 

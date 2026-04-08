@@ -1,30 +1,14 @@
-import { useEffect, useMemo } from "react";
-import { ContactsApi } from "./api/ContactsApi";
-import { ContactsCache } from "./api/ContactsCache";
-import { ContactsRepository } from "./api/ContactsRepository";
-import { NetworkStatusNotifier } from "./api/NetworkStatusNotifier";
-import { SessionStore } from "./api/SessionStore";
+import { useMemo } from "react";
 import { ContactDetails } from "./components/ContactDetails";
 import { ContactsList } from "./components/ContactsList";
 import { MessageBlock } from "./components/MessageBlock";
 import { Toast } from "./components/Toast";
-import { ContactsPresenter } from "./presentation/ContactsPresenter";
-import { useContactsPresenter } from "./presentation/useContactsPresenter";
+import { getKotlinContactsBridge } from "./interop/kotlinBridge";
+import { useKotlinContactsState } from "./interop/useKotlinContactsState";
 
 export default function App() {
-  const presenter = useMemo(() => {
-    const networkStatusNotifier = new NetworkStatusNotifier();
-    const sessionStore = new SessionStore();
-    const api = new ContactsApi(sessionStore, networkStatusNotifier);
-    const cache = new ContactsCache();
-    const repository = new ContactsRepository(api, cache);
-
-    return new ContactsPresenter(repository, networkStatusNotifier);
-  }, []);
-
-  const state = useContactsPresenter(presenter);
-
-  useEffect(() => () => presenter.dispose(), [presenter]);
+  const bridge = useMemo(getKotlinContactsBridge, []);
+  const state = useKotlinContactsState(bridge);
 
   const selectedContact = state.selectedContact;
   const pagingState = state.pagingState;
@@ -36,7 +20,7 @@ export default function App() {
       <Toast message={state.notification} />
 
       {selectedContact ? (
-        <ContactDetails contact={selectedContact} onBackToList={presenter.onBackToList} />
+        <ContactDetails contact={selectedContact} onBackToList={bridge.backToList} />
       ) : null}
 
       {!selectedContact && pagingState.isLoading && pagingState.items.length === 0 ? (
@@ -48,7 +32,7 @@ export default function App() {
           text={pagingState.error.message}
           tone="error"
           buttonLabel="Retry"
-          onButtonClick={presenter.onRetryLoading}
+          onButtonClick={bridge.retryLoading}
         />
       ) : null}
 
@@ -57,9 +41,9 @@ export default function App() {
       ) ? (
         <ContactsList
           pagingState={pagingState}
-          onRetryLoading={presenter.onRetryLoading}
-          onLoadNextPage={presenter.onLoadNextPage}
-          onContactSelected={presenter.onContactSelected}
+          onRetryLoading={bridge.retryLoading}
+          onLoadNextPage={bridge.loadNextPage}
+          onContactSelected={(contact) => bridge.selectContact(contact.stableKey)}
         />
       ) : null}
     </main>
